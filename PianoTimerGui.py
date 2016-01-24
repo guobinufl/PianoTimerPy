@@ -101,9 +101,11 @@ class Ui_PianoTimerWidget(object):
         fs = 1.0*RATE
     
         pianokeyfreq = PianoKeyFreq()
-#        pianokey_std = pianokeyfreq.StandardFreq()
         fwave = 'pianokeys.wav'
-        pianokey_rcd = pianokeyfreq.RecordFreq(fwave)
+        if(os.path.isfile(fwave) == True):
+            pianokeys_freq = pianokeyfreq.RecordFreq(fwave)
+        else:
+            pianokeys_freq = pianokeyfreq.StandardFreq()
     
         p = pyaudio.PyAudio()
         stream = p.open(format=FORMAT,
@@ -149,7 +151,7 @@ class Ui_PianoTimerWidget(object):
                 ispiano_bw = False
 		
             gap = 3 + np.floor(piano_fmax / 500.0)
-            pianokeyfind = (np.abs(pianokey_rcd - piano_fmax) < gap).nonzero()
+            pianokeyfind = (np.abs(pianokeys_freq - piano_fmax) < gap).nonzero()
             if(len(pianokeyfind[0]) > 0):
                 ispiano_key = True
             else:

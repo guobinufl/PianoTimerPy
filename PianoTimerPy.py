@@ -6,6 +6,7 @@ import scipy.io.wavfile as wavfile
 import pyaudio
 from datetime import datetime
 import re
+import os.path
 #import scipy.signal as signal
 
 class PianoKeyFreq(object):
