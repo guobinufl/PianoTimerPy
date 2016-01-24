@@ -115,7 +115,6 @@ class Ui_PianoTimerWidget(object):
                         frames_per_buffer=CHUNK)
 
         wav_total = np.zeros((max_sec+10, RATE))
-        print(wav_total.shape)
         ispiano = []
         play_sec_count = 0
         all_sec_count = 0
@@ -169,7 +168,7 @@ class Ui_PianoTimerWidget(object):
             print('isec={0:}, play_sec={1:}'.format(isec, remain_sec))
             str_min = np.floor(remain_sec/60.0).astype('int')
             str_sec = np.mod(remain_sec, 60).astype('int')
-            str_time = str(str_min) + ':' + str(str_sec)
+            str_time = "%02d:%02d" % (str_min, str_sec) #str(str_min) + ':' + str(str_sec)
             self.labelTime.setText(_translate("PianoTimerWidget", str_time, None))
             QtGui.QApplication.processEvents()
     			
