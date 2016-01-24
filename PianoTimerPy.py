@@ -129,7 +129,10 @@ def pianofind(yf, ff):
     ffright = ff[ifreqmax:]
     ifright = (yfright<0.75*yfmax).nonzero()
     
-    return freqmax, ffright[ifright[0][0]]-ffleft[ifleft[0][-1]]
+    if((len(ifleft[0])==0) or (len(ifright[0])==0)):
+        return 0.0, 0.0
+    else:
+        return freqmax, ffright[ifright[0][0]]-ffleft[ifleft[0][-1]]
 
 
 def main_offline():
