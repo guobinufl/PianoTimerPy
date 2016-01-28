@@ -13,6 +13,8 @@ class PianoKeyFreq(object):
     def __init__(self):
         self.KeyFreqList_std = np.zeros(88)
         self.KeyFreqList_rcd = np.zeros(88)
+        self.SingleKeyFFT = np.zeros((88, 8192*4))
+        self.SingleKeyWav = np.zeros((88, 8192))
         
     def StandardFreq(self):
         PianoKeyFreq = []
@@ -26,15 +28,24 @@ class PianoKeyFreq(object):
         
     def RecordFreq(self, fwave):
         rate, pianowav_tmp = wavfile.read(fwave)
-        pianowav = pianowav_tmp[:,0].astype('float') / (2**15)
-        pianowav = np.delete(pianowav, range(10000))
-        fs = 1.0*rate
+        if(pianowav_tmp.dtype == 'int16'):
+            if(len(pianowav_tmp.shape)>1):
+                pianowav = pianowav_tmp[:,0].astype('float') / (2**15)
+            else:
+                pianowav = pianowav_tmp.astype('float') / (2**15)
+        else:
+            if(len(pianowav_tmp.shape)>1):
+                pianowav = pianowav_tmp[:,0]
+            else:
+                pianowav = pianowav_tmp.copy()
         del pianowav_tmp
+        pianowav = np.delete(pianowav, range(np.round(rate/2.0).astype('int')))
+        fs = 1.0*rate
         
-        pianokeyind = self.KeySegment(pianowav)
+        pianokeyind = self.KeySegment(pianowav, rate=rate)
         PianoKeyFreq = []
         for ii, i in enumerate(pianokeyind):
-            yt = pianowav[i:i+20000]
+            yt = pianowav[i:i+np.round(0.5*rate).astype('int')]
             if(np.mod(ii, 10) == 15):
                 KeyFreq = self.KeyFreqFind(yt, fs, ikey=ii, isplot=True)
             else:
@@ -44,10 +55,53 @@ class PianoKeyFreq(object):
         
         return self.KeyFreqList_rcd
         
+    
+    def CalSingleKeyFFT(self, fwave):
+        rate, pianowav_tmp = wavfile.read(fwave)
+        if(pianowav_tmp.dtype == 'int16'):
+            if(len(pianowav_tmp.shape)>1):
+                pianowav = pianowav_tmp[:,0].astype('float') / (2**15)
+            else:
+                pianowav = pianowav_tmp.astype('float') / (2**15)
+        else:
+            if(len(pianowav_tmp.shape)>1):
+                pianowav = pianowav_tmp[:,0]
+            else:
+                pianowav = pianowav_tmp.copy()
+        del pianowav_tmp
+        pianowav = np.delete(pianowav, range(np.round(rate/2.0).astype('int')))
         
-    def KeySegment(self, yt):
-        yind = (np.abs(yt) > 0.95).nonzero()
-        yind1 = (np.diff(yind[0])>50000).nonzero()
+        pianokeyind = self.KeySegment(pianowav, dT=rate)
+        Nf = np.round(rate*1.5-1).astype('int')
+        self.SingleKeyFFT = np.zeros((88, Nf))
+#        plt.figure()
+#        plt.plot(pianowav)
+#        plt.show()
+#        print(pianokeyind)
+        for ii, i in enumerate(pianokeyind):
+            yt = pianowav[i:i+np.round(0.5*rate).astype('int')]
+            self.SingleKeyWav[ii, :] = yt
+            yf = np.fft.fft(yt, n=Nf)
+            self.SingleKeyFFT[ii,:] = yf.conj()
+            if(np.mod(ii, 10) == 15):
+                fs = 1.0 * rate
+                dt = 1.0 / fs
+                Nt = len(yt)
+                tt = np.arange(0, Nt*dt, dt)
+                df = fs / Nf
+                ff = np.arange(0, fs, df)
+                plt.figure()
+                plt.subplot(211)
+                plt.plot(tt, yt)
+                plt.subplot(212)
+                plt.plot(ff, np.abs(yf))
+                plt.xlim((0, fs/2.0))
+                plt.show()
+        
+        
+    def KeySegment(self, yt, dT=44100):
+        yind = (np.abs(yt) > 0.90).nonzero()
+        yind1 = (np.diff(yind[0])>dT).nonzero()
         yind2 = np.hstack((0, yind1[0]+1))
         pianokeyind = yind[0][yind2]
         
@@ -135,6 +189,127 @@ def pianofind(yf, ff):
     else:
         return freqmax, ffright[ifright[0][0]]-ffleft[ifleft[0][-1]]
 
+
+def pianofind_xcorr_t(yt, PianoKeyWav, isplot=False):
+    Nkey = PianoKeyWav.shape[0]
+    Nt = len(yt) + PianoKeyWav.shape[1] - 1
+    xcorr_key = np.zeros(Nkey)
+    xcorr2d = np.zeros((Nkey, Nt))
+    
+    for i in range(Nkey):
+        xcorr_tmp = np.correlate(yt, PianoKeyWav[i,:], mode='full')
+        xcorr_key[i] = np.max(np.abs(xcorr_tmp))
+        xcorr2d[i, :] = xcorr_tmp
+        
+    if(isplot):
+        plt.figure()
+        plt.subplot(211)
+        plt.plot(xcorr_key)
+        plt.subplot(212)
+        plt.imshow(xcorr2d.T, aspect='auto')
+        plt.show()
+        
+    return xcorr_key
+
+
+def pianofind_xcorr_f(yt, PianoKeyFFT, isplot=False):
+    Nkey = PianoKeyFFT.shape[0]
+    Nf = PianoKeyFFT.shape[1]
+    xcorr_key = np.zeros(Nkey)
+    xcorr2d = np.zeros((Nkey, Nf))
+
+    yf = np.fft.fft(yt, Nf)
+    for i in range(Nkey):
+        xcorrf = yf * PianoKeyFFT[i, :]
+        xcorr_tmp = np.real(np.fft.fftshift(np.fft.ifft(xcorrf)))
+        xcorr_key[i] = np.max(np.abs(xcorr_tmp))
+        xcorr2d[i, :] = xcorr_tmp
+    
+    if(isplot):
+        plt.figure()
+        plt.subplot(211)
+        plt.plot(xcorr_key)
+        plt.subplot(212)
+        plt.imshow(xcorr2d.T, aspect='auto')
+        plt.show()
+        
+    return xcorr_key
+
+
+def main_offline_xcorr():
+    rate, pianowav_tmp = wavfile.read('PianoKeys_16K_1.wav')
+    if(pianowav_tmp.dtype == 'int16'):
+        if(len(pianowav_tmp.shape)>1):
+            pianowav = pianowav_tmp[:,0].astype('float') / (2**15)
+        else:
+            pianowav = pianowav_tmp.astype('float') / (2**15)
+    else:
+        if(len(pianowav_tmp.shape)>1):
+            pianowav = pianowav_tmp[:,0]
+        else:
+            pianowav = pianowav_tmp.copy()
+    del pianowav_tmp
+
+    fs = 1.0*rate
+    Nsec = np.floor(pianowav.shape[0]/rate).astype('int')
+
+    pianokeyfreq = PianoKeyFreq()
+    fwave = 'PianoKeys_16K_2.wav'
+    pianokeyfreq.CalSingleKeyFFT(fwave)
+    
+    ispiano = [False]
+    xcorr_key_all = np.zeros((Nsec, 88))
+    for isec in range(1, Nsec-1):
+        ileft = np.round((isec-1.0)*rate).astype('int')
+        iright = np.round((isec+0.0)*rate).astype('int')
+        y = pianowav[ileft:iright]
+        
+        ymax = np.max(np.abs(y))
+        if(ymax > 0.5):
+            ispiano_amp = True
+        else:
+            ispiano_amp = False
+        
+#        xcorr_key_t = pianofind_xcorr_t(y, pianokeyfreq.SingleKeyWav, isplot=True)
+#        xcorr_key_f = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=True)
+#        plt.figure()
+#        plt.plot(xcorr_key_t)
+#        plt.plot(xcorr_key_f)
+        
+        xcorr_key = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=False)
+        xcorr_key_all[isec, :] = xcorr_key
+        if(np.max(xcorr_key) > 100):
+            ispiano_xcorr = True
+        else:
+            ispiano_xcorr = False
+            
+        if(ispiano_amp and ispiano_xcorr):
+            ispiano.append(True)
+            print('{0:} - piano key find. isamp={1:}, isxcorr={2:}'.\
+                  format(isec, ispiano_amp, ispiano_xcorr))
+        else:
+            ispiano.append(False)
+            print('{0:} - piano key not find. isamp={1:}, isxcorr={2:}'.\
+                  format(isec, ispiano_amp, ispiano_xcorr))
+    
+    ispiano.append(False)     
+    print(ispiano)
+    
+    
+    plt.figure(figsize=(12,9))
+    dt = 1.0/fs
+    for isec in range(1, Nsec):
+        ileft = np.round((isec-1.0)*rate).astype('int')
+        iright = np.round((isec+0.0)*rate).astype('int')
+        y = pianowav[ileft:iright].astype('float')
+        tt = np.arange(isec-1.0, isec, dt)
+        if(ispiano[isec]):
+            plt.plot(tt[0::10], y[0::10], 'r')
+        else:
+            plt.plot(tt[0::10], y[0::10], 'b')
+            
+            
+    
 
 def main_offline():
     rate, pianowav_tmp = wavfile.read('piano.wav')
