@@ -15,7 +15,9 @@ class PianoKeyFreq(object):
         self.KeyFreqList_rcd = np.zeros(88)
         self.SingleKeyFFT = np.zeros((88, 8192*2), dtype=np.complex)
         self.SingleKeyWav = np.zeros((88, 8192))
-        self.SingleKeyFFT.dtype
+        self.SingleKeyXcorrScale = np.ones(88)
+        self.SingleKeyXcorrScale[80:88] = 4
+        self.SingleKeyXcorrScale[76:80] = 2
         
     def StandardFreq(self):
         PianoKeyFreq = []
@@ -242,7 +244,9 @@ def main_offline_xcorr():
 
 #    rate, pianowav_tmp = wavfile.read('PianoKeys_16K_1.wav')
 #    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-18-17-725882.wav')
-    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-22-21-510476.wav')
+#    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-22-21-510476.wav')
+#    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-28-48-364498.wav')
+    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-37-04-235849.wav')
     if(pianowav_tmp.dtype == 'int16'):
         if(len(pianowav_tmp.shape)>1):
             pianowav = pianowav_tmp[:,0].astype('float') / (2**15)
@@ -274,6 +278,7 @@ def main_offline_xcorr():
             ispiano_amp = True
         else:
             ispiano_amp = False
+        y = y / ymax
         
 #        xcorr_key_t = pianofind_xcorr_t(y, pianokeyfreq.SingleKeyWav, isplot=True)
 #        xcorr_key_f = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=True)
@@ -283,8 +288,9 @@ def main_offline_xcorr():
         
         now = time.time()
         xcorr_key = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=False)
+        xcorr_key = xcorr_key * pianokeyfreq.SingleKeyXcorrScale
         xcorr_key_all[isec, :] = xcorr_key
-        if(np.max(xcorr_key) > 50):
+        if(np.max(xcorr_key) > 80):
             ispiano_xcorr = True
         else:
             ispiano_xcorr = False
@@ -302,11 +308,14 @@ def main_offline_xcorr():
     ispiano.append(False)     
     print(ispiano)
     
-    plt.figure(figsize=(12,9))
+    plt.figure(figsize=(12,12))
+    plt.subplot(211)
     plt.imshow(xcorr_key_all.T, aspect='auto')
     ax = plt.gca()
     ax.invert_yaxis()
     plt.colorbar()
+    plt.subplot(212)
+    plt.plot(np.max(xcorr_key_all, axis=1))
     plt.show()
     
     plt.figure(figsize=(12,9))
