@@ -13,8 +13,9 @@ class PianoKeyFreq(object):
     def __init__(self):
         self.KeyFreqList_std = np.zeros(88)
         self.KeyFreqList_rcd = np.zeros(88)
-        self.SingleKeyFFT = np.zeros((88, 8192*4))
+        self.SingleKeyFFT = np.zeros((88, 8192*2), dtype=np.complex)
         self.SingleKeyWav = np.zeros((88, 8192))
+        self.SingleKeyFFT.dtype
         
     def StandardFreq(self):
         PianoKeyFreq = []
@@ -72,8 +73,8 @@ class PianoKeyFreq(object):
         pianowav = np.delete(pianowav, range(np.round(rate/2.0).astype('int')))
         
         pianokeyind = self.KeySegment(pianowav, dT=rate)
-        Nf = np.round(rate*1.5-1).astype('int')
-        self.SingleKeyFFT = np.zeros((88, Nf))
+        Nf = np.round(rate*1.5).astype('int')
+        self.SingleKeyFFT = np.zeros((88, Nf), dtype=np.complex)
 #        plt.figure()
 #        plt.plot(pianowav)
 #        plt.show()
@@ -237,7 +238,11 @@ def pianofind_xcorr_f(yt, PianoKeyFFT, isplot=False):
 
 
 def main_offline_xcorr():
-    rate, pianowav_tmp = wavfile.read('PianoKeys_16K_1.wav')
+    import time
+
+#    rate, pianowav_tmp = wavfile.read('PianoKeys_16K_1.wav')
+#    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-18-17-725882.wav')
+    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-22-21-510476.wav')
     if(pianowav_tmp.dtype == 'int16'):
         if(len(pianowav_tmp.shape)>1):
             pianowav = pianowav_tmp[:,0].astype('float') / (2**15)
@@ -265,7 +270,7 @@ def main_offline_xcorr():
         y = pianowav[ileft:iright]
         
         ymax = np.max(np.abs(y))
-        if(ymax > 0.5):
+        if(ymax > 0.2):
             ispiano_amp = True
         else:
             ispiano_amp = False
@@ -276,25 +281,33 @@ def main_offline_xcorr():
 #        plt.plot(xcorr_key_t)
 #        plt.plot(xcorr_key_f)
         
+        now = time.time()
         xcorr_key = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=False)
         xcorr_key_all[isec, :] = xcorr_key
-        if(np.max(xcorr_key) > 100):
+        if(np.max(xcorr_key) > 50):
             ispiano_xcorr = True
         else:
             ispiano_xcorr = False
+        usedtime = time.time() - now
             
         if(ispiano_amp and ispiano_xcorr):
             ispiano.append(True)
-            print('{0:} - piano key find. isamp={1:}, isxcorr={2:}'.\
-                  format(isec, ispiano_amp, ispiano_xcorr))
+            print('{0:} - piano key     find. isamp={1:}, isxcorr={2:}. Used {3:8.5f} sec'.\
+                  format(isec, ispiano_amp, ispiano_xcorr, usedtime))
         else:
             ispiano.append(False)
-            print('{0:} - piano key not find. isamp={1:}, isxcorr={2:}'.\
-                  format(isec, ispiano_amp, ispiano_xcorr))
+            print('{0:} - piano key not find. isamp={1:}, isxcorr={2:}. Used {3:8.5f} sec'.\
+                  format(isec, ispiano_amp, ispiano_xcorr, usedtime))
     
     ispiano.append(False)     
     print(ispiano)
     
+    plt.figure(figsize=(12,9))
+    plt.imshow(xcorr_key_all.T, aspect='auto')
+    ax = plt.gca()
+    ax.invert_yaxis()
+    plt.colorbar()
+    plt.show()
     
     plt.figure(figsize=(12,9))
     dt = 1.0/fs
@@ -307,6 +320,7 @@ def main_offline_xcorr():
             plt.plot(tt[0::10], y[0::10], 'r')
         else:
             plt.plot(tt[0::10], y[0::10], 'b')
+    plt.show()
             
             
     
@@ -503,4 +517,5 @@ def main_online():
 
 if __name__ == "__main__":
 #    main_offline()
-    main_online()
+#    main_online()
+    main_offline_xcorr()
