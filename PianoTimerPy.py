@@ -59,7 +59,7 @@ class PianoKeyFreq(object):
         return self.KeyFreqList_rcd
         
     
-    def CalSingleKeyFFT(self, fwave):
+    def CalSingleKeyFFT(self, fwave, DeltaT=0.5):
         rate, pianowav_tmp = wavfile.read(fwave)
         if(pianowav_tmp.dtype == 'int16'):
             if(len(pianowav_tmp.shape)>1):
@@ -75,14 +75,17 @@ class PianoKeyFreq(object):
         pianowav = np.delete(pianowav, range(np.round(rate/2.0).astype('int')))
         
         pianokeyind = self.KeySegment(pianowav, dT=rate)
-        Nf = np.round(rate*1.5).astype('int')
+        Nt = np.round(DeltaT*rate).astype('int')
+        self.SingleKeyWav = np.zeros((88, Nt))
+#        Nf = np.round(rate*(1.0+DeltaT)).astype('int')
+        Nf = 2 * Nt
         self.SingleKeyFFT = np.zeros((88, Nf), dtype=np.complex)
 #        plt.figure()
 #        plt.plot(pianowav)
 #        plt.show()
 #        print(pianokeyind)
         for ii, i in enumerate(pianokeyind):
-            yt = pianowav[i:i+np.round(0.5*rate).astype('int')]
+            yt = pianowav[i:i+Nt]
             self.SingleKeyWav[ii, :] = yt
             yf = np.fft.fft(yt, n=Nf)
             self.SingleKeyFFT[ii,:] = yf.conj()
@@ -243,6 +246,7 @@ def main_offline_xcorr():
     import time
 
 #    rate, pianowav_tmp = wavfile.read('PianoKeys_16K_1.wav')
+#    rate, pianowav_tmp = wavfile.read('PianoKeys_16K_2.wav')
 #    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-18-17-725882.wav')
 #    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-22-21-510476.wav')
 #    rate, pianowav_tmp = wavfile.read('RecordWav/2016-01-24-16-28-48-364498.wav')
@@ -264,7 +268,7 @@ def main_offline_xcorr():
 
     pianokeyfreq = PianoKeyFreq()
     fwave = 'PianoKeys_16K_2.wav'
-    pianokeyfreq.CalSingleKeyFFT(fwave)
+    pianokeyfreq.CalSingleKeyFFT(fwave, DeltaT=0.5)
     
     ispiano = [False]
     xcorr_key_all = np.zeros((Nsec, 88))
