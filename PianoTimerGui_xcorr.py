@@ -132,7 +132,7 @@ class Ui_PianoTimerWidget(object):
 
             y = wav_sec.astype('float') / 2**15
             ymax = np.max(np.abs(y))
-            if(ymax > 0.6):
+            if(ymax > 0.1):
                 ispiano_amp = True
             else:
                 ispiano_amp = False
@@ -141,7 +141,7 @@ class Ui_PianoTimerWidget(object):
             xcorr_key = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=False)
             xcorr_key = xcorr_key * pianokeyfreq.SingleKeyXcorrScale
             xcorr_key_all[isec, :] = xcorr_key
-            if(np.max(xcorr_key) > 80):
+            if(np.max(xcorr_key) > 100):
                 ispiano_xcorr = True
             else:
                 ispiano_xcorr = False
@@ -154,8 +154,8 @@ class Ui_PianoTimerWidget(object):
                 all_sec_count += 1
                 ispiano.append(False)
 			
-            remain_sec = play_sec - isec
-            print('isec={0:}, play_sec={1:}'.format(isec, remain_sec))
+            remain_sec = play_sec - play_sec_count
+            print('Total Sec={0:}, Play Sec={1:}'.format(isec, play_sec_count))
             str_min = np.floor(remain_sec/60.0).astype('int')
             str_sec = np.mod(remain_sec, 60).astype('int')
             str_time = "%02d:%02d" % (str_min, str_sec) #str(str_min) + ':' + str(str_sec)
