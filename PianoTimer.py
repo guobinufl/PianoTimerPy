@@ -1,7 +1,9 @@
-import sys
+import sys, os
 from PyQt4 import QtCore, QtGui
 from PianoKey import *
 from PianoTimerUi_Main import Ui_MainWindow
+from PianoTimerUi_About import Ui_DialogAbout
+from PianoTimerUi_Setup import Ui_DialogSetup
 
 
 try:
@@ -19,22 +21,61 @@ except AttributeError:
         return QtGui.QApplication.translate(context, text, disambig)
 
 
+class AboutDialog(QtGui.QDialog, Ui_DialogAbout):
+    def __init__(self):
+        super(AboutDialog,self).__init__()
+        self.setupUi(self)
+        self.pushButton.clicked.connect(self.close)
+        
+
+class SetupDialog(QtGui.QDialog, Ui_DialogSetup):
+    def __init__(self):
+        super(SetupDialog,self).__init__()
+        self.setupUi(self)
+        
+
 class MainForm(QtGui.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(MainForm,self).__init__()
         self.bTimerRun = False
+        self.bSaveWav = False
+        self.nMethod = 0
         self.setupUi(self)
         
-        #QtCore.QObject.connect(self.pushButton_End, QtCore.SIGNAL(_fromUtf8("clicked()")), self.stopTimer)
-        #QtCore.QObject.connect(self.pushButton_Begin, QtCore.SIGNAL(_fromUtf8("clicked()")), self.beginTimer)
+        self.myabout = AboutDialog()
+        self.mysetup = SetupDialog()
+
+        self.actionExit.triggered.connect(self.close)
+        self.actionAbout.triggered.connect(self.showAbout)
+        self.actionPerference.triggered.connect(self.showSetup)
+        
         self.pushButton_Begin.clicked.connect(self.beginTimer)
         self.pushButton_Stop.clicked.connect(self.stopTimer)
-        
+    
+    def showAbout(self):
+        self.myabout.show()
 
+    def showSetup(self):
+        self.mysetup.show()
+
+    def checkSetup(self):
+        if(self.mysetup.comboBox_SaveWav.currentIndex() == 0):
+            self.bSaveWav = False
+        else:
+            self.bSaveWav = True
+            if not os.path.exists("RecordWav"):
+                os.makedirs("RecordWav")
+        self.nMethod = self.mysetup.comboBox_SaveWav.currentIndex()
+        if not os.path.exists("PianoKeys.wav"):
+            print("PianoKeys.wav is missing!")
+            self.nMethod = 0
+        
     def stopTimer(self):
         self.bTimerRun = False
 
     def beginTimer(self):
+        self.checkSetup()
+        
         play_sec = self.spinBox_MinIn.value() * 60
         max_sec = 1 * play_sec
         self.bTimerRun = True
@@ -48,11 +89,15 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         CHUNK = 1024*2
         FORMAT = pyaudio.paInt16
         CHANNELS = 1
-        RATE = 1024*16 #44100
+        RATE = 1024*16
         fs = 1.0*RATE
     
         pianokeyfreq = PianoKeyFreq()
         fwave = 'PianoKeys.wav'
+        if(self.nMethod == 1):
+            pianokeys_freq = pianokeyfreq.RecordFreq(fwave)
+        else:
+            pianokeys_freq = pianokeyfreq.StandardFreq()
         pianokeyfreq.CalSingleKeyFFT(fwave)
     
         p = pyaudio.PyAudio()
@@ -87,17 +132,41 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
                 ispiano_amp = True
             else:
                 ispiano_amp = False
-            y = y / ymax
 			
-            xcorr_key = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=False)
-            xcorr_key = xcorr_key * pianokeyfreq.SingleKeyXcorrScale
-            xcorr_key_all[isec, :] = xcorr_key
-            if(np.max(xcorr_key) > 100):
-                ispiano_xcorr = True
+            if((self.nMethod == 0) or (self.nMethod == 1)):
+                yf, ff, df = PianoFFT(y, fs)
+                fleft = 0
+                fright = np.round(5000/df).astype('int')
+                piano_fmax, piano_bw = pianofind(yf[fleft:fright], ff[fleft:fright])
+			
+                if(piano_bw <6):
+                    ispiano_bw = True
+                else:
+                    ispiano_bw = False
+		
+                gap = 3 + np.floor(piano_fmax / 500.0)
+                pianokeyfind = (np.abs(pianokeys_freq - piano_fmax) < gap).nonzero()
+                if(len(pianokeyfind[0]) > 0):
+                    ispiano_key = True
+                else:
+                    ispiano_key = False
+                    
+                if(ispiano_bw and ispiano_key):
+                    ispiano_freq = True
+                else:
+                    ispiano_freq = False
             else:
-                ispiano_xcorr = False
+                y = y / ymax
+                xcorr_key = pianofind_xcorr_f(y, pianokeyfreq.SingleKeyFFT, isplot=False)
+                xcorr_key = xcorr_key * pianokeyfreq.SingleKeyXcorrScale
+                xcorr_key_all[isec, :] = xcorr_key
+                if(np.max(xcorr_key) > 100):
+                    ispiano_xcorr = True
+                else:
+                    ispiano_xcorr = False
+                ispiano_freq = ispiano_xcorr
 				
-            if(ispiano_amp and ispiano_xcorr):
+            if(ispiano_amp and ispiano_freq):
                 all_sec_count += 1
                 play_sec_count += 1
                 ispiano.append(True)
@@ -123,10 +192,11 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         stream.close()
         p.terminate()
         
-        wav_data = np.hstack(wav_total[0:all_sec_count+2, :]) / 2**15
-        cur_dt = str(datetime.now())
-        wav_file = re.sub('(:|\.| )', '-', cur_dt)
-        wavfile.write('RecordWav/'+wav_file+'.wav', RATE, wav_data)		
+        if(self.bSaveWav):
+            wav_data = np.hstack(wav_total[0:all_sec_count+2, :]) / 2**15
+            cur_dt = str(datetime.now())
+            wav_file = re.sub('(:|\.| )', '-', cur_dt)
+            wavfile.write('RecordWav/'+wav_file+'.wav', RATE, wav_data)		
 		
         
 

@@ -296,7 +296,7 @@
     <property name="title">
      <string>Setting</string>
     </property>
-    <addaction name="actionPreference"/>
+    <addaction name="actionPerference"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -311,7 +311,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen">
    <property name="text">
-    <string>Open...</string>
+    <string>Open Ref Wav</string>
    </property>
   </action>
   <action name="actionExit">
@@ -329,9 +329,9 @@
     <string>About</string>
    </property>
   </action>
-  <action name="actionPreference">
+  <action name="actionPerference">
    <property name="text">
-    <string>Preference...</string>
+    <string>Perference</string>
    </property>
   </action>
  </widget>
