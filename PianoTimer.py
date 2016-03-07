@@ -48,6 +48,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         self.actionExit.triggered.connect(self.close)
         self.actionAbout.triggered.connect(self.showAbout)
         self.actionPerference.triggered.connect(self.showSetup)
+        self.actionOpen.triggered.connect(self.openRefWav)
         
         self.pushButton_Begin.clicked.connect(self.beginTimer)
         self.pushButton_Stop.clicked.connect(self.stopTimer)
@@ -57,6 +58,43 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
 
     def showSetup(self):
         self.mysetup.show()
+
+    def openRefWav(self):
+        pianokeyfreq = PianoKeyFreq()
+        fwave = 'PianoKeys.wav'
+        pianokeys_freq_std = pianokeyfreq.StandardFreq()
+        pianokeys_freq_ref = pianokeyfreq.RecordFreq(fwave)
+        
+        rate, pianowav_tmp = wavfile.read(fwave)
+        if(pianowav_tmp.dtype == 'int16'):
+            if(len(pianowav_tmp.shape)>1):
+                pianowav = pianowav_tmp[:,0].astype('float') / (2**15)
+            else:
+                pianowav = pianowav_tmp.astype('float') / (2**15)
+        else:
+            if(len(pianowav_tmp.shape)>1):
+                pianowav = pianowav_tmp[:,0]
+            else:
+                pianowav = pianowav_tmp.copy()
+        del pianowav_tmp
+        pianowav = np.delete(pianowav, range(np.round(rate/2.0).astype('int')))
+        dt = 1.0 / rate
+        Nt = len(pianowav)
+        tt = np.arange(Nt) * dt
+        
+        fig = plt.figure(figsize=(9,12))
+        plt.subplot(3,1,1)
+        plt.plot(tt, pianowav)
+        plt.title('Waveform'); plt.xlabel=('Time (sec)'); plt.ylabel('Amp')
+        plt.subplot(3,1,2)
+        plt.plot(np.arange(88)+1, pianokeys_freq_std, 'bo');
+        plt.plot(np.arange(88)+1, pianokeys_freq_ref, 'r.');
+        plt.title('Freq of Each Key'); plt.xlabel=('Key ID'); plt.ylabel('Hz')
+        plt.legend('Std', 'Ref')
+        plt.subplot(3,1,3)
+        plt.plot(np.arange(88)+1, pianokeys_freq_ref - pianokeys_freq_std, 'k.');
+        plt.title('Different Freq between Std and Ref'); plt.xlabel=('Key ID'); plt.ylabel('Hz')
+        plt.show()
 
     def checkSetup(self):
         if(self.mysetup.comboBox_SaveWav.currentIndex() == 0):

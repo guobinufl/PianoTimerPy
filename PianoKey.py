@@ -45,7 +45,7 @@ class PianoKeyFreq(object):
         pianowav = np.delete(pianowav, range(np.round(rate/2.0).astype('int')))
         fs = 1.0*rate
         
-        pianokeyind = self.KeySegment(pianowav, rate=rate)
+        pianokeyind = self.KeySegment(pianowav, dT=rate)
         PianoKeyFreq = []
         for ii, i in enumerate(pianokeyind):
             yt = pianowav[i:i+np.round(0.5*rate).astype('int')]
