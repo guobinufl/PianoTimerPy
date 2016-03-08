@@ -131,10 +131,13 @@ class PianoKeyFreq(object):
         stdfreq = self.StandardFreq()[ikey]
         istdfreq = np.round(stdfreq/df).astype('int')
         fband = 0.1 * stdfreq
-        ifband = np.max((np.round(fband/df).astype('int'), np.round(20.0/df).astype('int')))
+        ifband = np.max((np.round(fband/df).astype('int'), np.round(10.0/df).astype('int')))
         ifreqmax = np.argmax(yf[istdfreq-ifband : istdfreq+ifband])
-        ff1 = ff[istdfreq-ifband : istdfreq+ifband]
-        freqmax = ff1[ifreqmax]
+        if((ifreqmax <= 1) or (ifreqmax >= 2*ifband-2)):
+            freqmax = ff[istdfreq]
+        else:
+            ff1 = ff[istdfreq-ifband : istdfreq+ifband]
+            freqmax = ff1[ifreqmax]
         
         if(isplot):
             dt = 1.0 / fs

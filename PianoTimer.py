@@ -84,16 +84,16 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         
         fig = plt.figure(figsize=(9,12))
         plt.subplot(3,1,1)
-        plt.plot(tt, pianowav)
-        plt.title('Waveform'); plt.xlabel=('Time (sec)'); plt.ylabel('Amp')
+        plt.plot(tt, pianowav); plt.ylim([-1.2, 1.2])
+        plt.title('Waveform'); plt.xlabel('Time (sec)'); plt.ylabel('Amp')
         plt.subplot(3,1,2)
-        plt.plot(np.arange(88)+1, pianokeys_freq_std, 'bo');
-        plt.plot(np.arange(88)+1, pianokeys_freq_ref, 'r.');
-        plt.title('Freq of Each Key'); plt.xlabel=('Key ID'); plt.ylabel('Hz')
-        plt.legend('Std', 'Ref')
+        plt.semilogy(np.arange(88)+1, pianokeys_freq_std, 'bo');
+        plt.semilogy(np.arange(88)+1, pianokeys_freq_ref, 'r.');
+        plt.title('Freq of Each Key'); plt.xlabel('Key ID'); plt.ylabel('Hz')
+        plt.legend(('Std', 'Ref'), loc=0)
         plt.subplot(3,1,3)
         plt.plot(np.arange(88)+1, pianokeys_freq_ref - pianokeys_freq_std, 'k.');
-        plt.title('Different Freq between Std and Ref'); plt.xlabel=('Key ID'); plt.ylabel('Hz')
+        plt.title('Different Freq between Std and Ref'); plt.xlabel('Key ID'); plt.ylabel('Hz')
         plt.show()
 
     def checkSetup(self):
