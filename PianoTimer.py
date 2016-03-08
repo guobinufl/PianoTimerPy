@@ -48,7 +48,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         self.actionExit.triggered.connect(self.close)
         self.actionAbout.triggered.connect(self.showAbout)
         self.actionPerference.triggered.connect(self.showSetup)
-        self.actionOpen.triggered.connect(self.openRefWav)
+        self.actionOpen_RefWav.triggered.connect(self.openRefWav)
         
         self.pushButton_Begin.clicked.connect(self.beginTimer)
         self.pushButton_Stop.clicked.connect(self.stopTimer)
@@ -82,7 +82,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         Nt = len(pianowav)
         tt = np.arange(Nt) * dt
         
-        fig = plt.figure(figsize=(9,12))
+        fig = plt.figure(figsize=(8,8))
         plt.subplot(3,1,1)
         plt.plot(tt, pianowav); plt.ylim([-1.2, 1.2])
         plt.title('Waveform'); plt.xlabel('Time (sec)'); plt.ylabel('Amp')
@@ -94,6 +94,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         plt.subplot(3,1,3)
         plt.plot(np.arange(88)+1, pianokeys_freq_ref - pianokeys_freq_std, 'k.');
         plt.title('Different Freq between Std and Ref'); plt.xlabel('Key ID'); plt.ylabel('Hz')
+        plt.tight_layout()
         plt.show()
 
     def checkSetup(self):
@@ -117,7 +118,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
         play_sec = self.spinBox_MinIn.value() * 60
         max_sec = 1 * play_sec
         self.bTimerRun = True
-		
+
         remain_sec = play_sec
         str_min = np.floor(remain_sec/60.0).astype('int')
         str_sec = np.mod(remain_sec, 60).astype('int')
@@ -170,18 +171,18 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
                 ispiano_amp = True
             else:
                 ispiano_amp = False
-			
+
             if((self.nMethod == 0) or (self.nMethod == 1)):
                 yf, ff, df = PianoFFT(y, fs)
                 fleft = 0
                 fright = np.round(5000/df).astype('int')
                 piano_fmax, piano_bw = pianofind(yf[fleft:fright], ff[fleft:fright])
-			
+
                 if(piano_bw <6):
                     ispiano_bw = True
                 else:
                     ispiano_bw = False
-		
+
                 gap = 3 + np.floor(piano_fmax / 500.0)
                 pianokeyfind = (np.abs(pianokeys_freq - piano_fmax) < gap).nonzero()
                 if(len(pianokeyfind[0]) > 0):
@@ -203,7 +204,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
                 else:
                     ispiano_xcorr = False
                 ispiano_freq = ispiano_xcorr
-				
+
             if(ispiano_amp and ispiano_freq):
                 all_sec_count += 1
                 play_sec_count += 1
@@ -211,7 +212,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
             else:
                 all_sec_count += 1
                 ispiano.append(False)
-			
+
             remain_sec = play_sec - play_sec_count
             print('Total Sec={0:}, Play Sec={1:}'.format(isec, play_sec_count))
             str_min = np.floor(remain_sec/60.0).astype('int')
@@ -219,7 +220,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
             str_time = "%02d:%02d" % (str_min, str_sec) #str(str_min) + ':' + str(str_sec)
             self.labelTime.setText(_translate("MainWindow", str_time, None))
             QtGui.QApplication.processEvents()
-    			
+
             if(remain_sec <= 0):
                 self.bTimerRun = False
 
@@ -235,7 +236,7 @@ class MainForm(QtGui.QMainWindow, Ui_MainWindow):
             cur_dt = str(datetime.now())
             wav_file = re.sub('(:|\.| )', '-', cur_dt)
             wavfile.write('RecordWav/'+wav_file+'.wav', RATE, wav_data)		
-		
+
         
 
 
